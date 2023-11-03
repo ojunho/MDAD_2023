@@ -170,7 +170,9 @@ class purePursuit :
         self.lfd = 1
         self.min_lfd = 13
         self.max_lfd = 20
-        self.vehicle_length = 4.635
+        # self.vehicle_length = 4.635
+        
+        self.vehicle_length = 3.000
         self.steering = 0
         
     def getPath(self,msg):
@@ -272,5 +274,3 @@ class purePursuit :
             self.steering = atan2((2*self.vehicle_length*sin(theta)),self.lfd)*180/pi*(-1)
             # print(self.steering)
             return self.steering, path_point.x, path_point.y
-
-

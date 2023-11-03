@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import warnings
@@ -41,7 +41,7 @@ class PathMaker :
         full_path = pkg_path +'/'+ self.path_folder_name+'/'+self.make_path_name+'.txt'
         self.f = open(full_path, 'w')
 
-        rate = rospy.Rate(30) 
+        rate = rospy.Rate(50) 
         while not rospy.is_shutdown():
             self.path_make()
             rate.sleep()    

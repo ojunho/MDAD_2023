@@ -41,10 +41,13 @@ class PurePursuit():
         rospy.Subscriber("/imu", Imu, self.ImuCB) ## Vehicle Status Subscribe
         rospy.Subscriber("/traffic_light", Int64MultiArray, self.trafficCB)
 
+        # traffic sign
         self.traffic_signal = 0
 
         self.green_count = 0
         self.red_count = 0
+
+        # velocity -> accel로 오면서 항속을 하기 위해 만들어진 변수들
 
         self.steering_angle_to_servo_offset = 0.0 ## servo moter offset
         self.target_x = 0.0
@@ -69,7 +72,9 @@ class PurePursuit():
         self.original_longitude = 0
         self.original_latitude = 0
 
-        self.steering_offset = 0.05
+        # offset 0.05 -> 0.1 (pure pursuit 알고리즘 vehicle_length를 휠베이스 기반 3.000으로 바꾸고 나서 바꾼 값.)
+        # self.steering_offset = 0.05
+        self.steering_offset = 0.07
 
         self.x, self.y = None, None
         self.br = tf.TransformBroadcaster()
@@ -94,7 +99,7 @@ class PurePursuit():
         # Time var
         count = 0
         rate = rospy.Rate(20) 
-                                           
+    
         while not rospy.is_shutdown():
   
             self.global_path_pub.publish(self.global_path)
@@ -127,11 +132,14 @@ class PurePursuit():
 
             # servo_msg(조향각)에 따라서 엑셀 밟는 비율을 가변적으로 조정함.
 
+            # 속도 조절 하는것. 악셀을 밟았다 뗐다가 하는 방향으로
+
             self.motor_msg = 0.1 # 0~1
             self.brake_msg = 0 # 0~1
 
             # echo red, green count
-            print(f"green count: {self.green_count}\nred cound: {self.red_count}")
+            # 내가 주석함 (성준)
+            # print(f"green count: {self.green_count}\nred cound: {self.red_count}")
 
             ########################################################################################################################################################
             self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
@@ -195,7 +203,6 @@ class PurePursuit():
         self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
     
 ###################################################################### Call Back ######################################################################
-
     def gpsCB(self, msg): 
         #UTMK
         self.original_longitude = msg.longitude
@@ -205,7 +212,6 @@ class PurePursuit():
         self.lon = msg.longitude
         
         self.convertLL2UTM()
-
         self.br.sendTransform((self.x, self.y, 0.),
                          tf.transformations.quaternion_from_euler(0,0,0.),
                          rospy.Time.now(),

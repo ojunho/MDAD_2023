@@ -7,6 +7,7 @@
 subdirs("gtest")
 subdirs("morai_msgs")
 subdirs("beginner_tutorials_blanks")
+subdirs("gps_velocity")
 subdirs("path_maker")
 subdirs("pure_pursuit")
 subdirs("traffic_sign")
