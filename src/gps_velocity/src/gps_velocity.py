@@ -36,7 +36,7 @@ class GpsVelocity :
         # 
         # self.threshold_ratio = 0.1
         # gps 통해 구하는 속도의 튀는값 보정 위한 
-        self.threshold_num = 4
+        self.threshold_num = 6
 
         self.prev_velocity = Float64()
         self.prev_velocity = 0.0

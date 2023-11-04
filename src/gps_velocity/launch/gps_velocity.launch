@@ -1,0 +1,3 @@
+<launch>
+	<node pkg="gps_velocity" type="gps_velocity.py" name="get_velocity" output="screen" />
+</launch>

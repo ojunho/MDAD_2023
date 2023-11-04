@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+
 import warnings
 import sys,os
 import rospy
@@ -14,7 +15,6 @@ from morai_msgs.msg import EgoVehicleStatus, GetTrafficLightStatus, GPSMessage, 
 from morai_msgs.srv import MoraiEventCmdSrv
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from utils import pathReader,findLocalPath,purePursuit
-from std_msgs.msg import Int64
 
 import tf
 import time
@@ -23,14 +23,15 @@ from math import *
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # 아이오닉 5 -> 조향값(servo_msg) 0일 때 직진 양수이면 좌회전 음수이면 우회전
-
 DEFAULT_LFD = 18
 
 class PurePursuit():
     def __init__(self):
         rospy.init_node('pure_pursuit', anonymous=True)
 
-        self.path_name = 'first_faster'
+        # self.path_name = 'first_faster'
+        self.path_name = 'second_faster'
+        self.passed_curve = False
 
         # Publisher
         self.global_path_pub= rospy.Publisher('/global_path', Path, queue_size=1) ## global_path publisher 
@@ -40,6 +41,7 @@ class PurePursuit():
         rospy.Subscriber("/gps", GPSMessage, self.gpsCB) ## Vehicle Status Subscriber 
         rospy.Subscriber("/imu", Imu, self.ImuCB) ## Vehicle Status Subscribe
         rospy.Subscriber("/traffic_light", Int64MultiArray, self.trafficCB)
+        rospy.Subscriber("/gps_velocity", Float64, self.velocityCB)
 
         # traffic sign
         self.traffic_signal = 0
@@ -48,6 +50,7 @@ class PurePursuit():
         self.red_count = 0
 
         # velocity -> accel로 오면서 항속을 하기 위해 만들어진 변수들
+        self.gps_velocity = 0.0
 
         self.steering_angle_to_servo_offset = 0.0 ## servo moter offset
         self.target_x = 0.0
@@ -65,6 +68,9 @@ class PurePursuit():
         self.longitude = 0.0
         self.altitude = 0.0
 
+        self.yaw = 0.0
+        self.yaw_rear = False
+
         self.motor_msg = 0.0
         self.servo_msg = 0.0
         self.brake_msg = 0.0
@@ -72,9 +78,31 @@ class PurePursuit():
         self.original_longitude = 0
         self.original_latitude = 0
 
+        self.camera_servo_msg = 0.0
+        self.camera_motor_msg = 10.0
+
+        self.clear_stop_mission = False
+        self.clear_start_mission = False
+
+        self.dynamic_flag = False
+        self.dynamic_done = False
+        # self.dynamic_done = True
+
+        self.curve_servo_msg = 0.0
+        self.curve_motor_msg = 0.0
+
+        self.Mission = "line_drive"
+
+        self.green_count = 0
+        self.red_count = 0
+
+        self.dy_obs_info = [0, 0, 0, 0]
+
+        self.T_mission = False
+
         # offset 0.05 -> 0.1 (pure pursuit 알고리즘 vehicle_length를 휠베이스 기반 3.000으로 바꾸고 나서 바꾼 값.)
         # self.steering_offset = 0.05
-        self.steering_offset = 0.07
+        self.steering_offset = 0.06
 
         self.x, self.y = None, None
         self.br = tf.TransformBroadcaster()
@@ -97,7 +125,6 @@ class PurePursuit():
         self.global_path = path_reader.read_txt(self.path_name+".txt") ## 출력할 경로의 이름
 
         # Time var
-        count = 0
         rate = rospy.Rate(20) 
     
         while not rospy.is_shutdown():
@@ -109,6 +136,8 @@ class PurePursuit():
             self.convertLL2UTM()
 
             self.next_start_waypoint = current_waypoint
+
+            print("Current Waypoint: ", current_waypoint)
            
             self.pure_pursuit.getPath(local_path) ## pure_pursuit 알고리즘에 Local path 적용
         
@@ -126,21 +155,125 @@ class PurePursuit():
             # cv2.imshow("original", cv2_image)ervo_position_command -> data
             # range : 0.0 ~ 1.0 (straight 0.5)
 
-            self.ctrl_cmd_msg.longlCmdType = 1
+            self.ctrl_cmd_msg.longlCmdType = 2
+            self.motor_msg = 19.75 # 0~1
             self.servo_msg = self.steering * self.steering_offset #+ self.steering_angle_to_servo_offset
-            print(self.servo_msg)
+            self.brake_msg = 0
+            
+            # gps - pure pursuit 기반 조향각 출력문
+            # print(self.servo_msg)
 
             # servo_msg(조향각)에 따라서 엑셀 밟는 비율을 가변적으로 조정함.
 
             # 속도 조절 하는것. 악셀을 밟았다 뗐다가 하는 방향으로
 
-            self.motor_msg = 0.1 # 0~1
-            self.brake_msg = 0 # 0~1
+            # # 속도 조절 알고리즘.
+            # if self.gps_velocity < 20:
+            #     self.motor_msg = 0.5
+            #     self.brake_msg = 0
+            # else:
+            #     self.motor_msg = 0
+            #     self.brake_msg = 0
+            
+            if self.path_name == 'first_faster':
+            #---------------------------- 출발 -----------------------------------#
+                if  current_waypoint <= 72:
+                    self.setServoMsgWithLfd(8)
+                    self.servo_msg /= 10
+                    self.drive_left_signal()
+                    continue
+                elif current_waypoint <= 80  and self.clear_start_mission == False:
+                    self.forward_mode()
+                    self.clear_start_mission = True
 
+            #---------------------------- 경사로 정지⋅ 출발 -----------------------------------#
+                # 오르막 더 가속
+                if 80 < current_waypoint <= 163: 
+                    self.setMotorMsgWithVel(22)
+                # 정지하는 코드
+                elif 163 < current_waypoint <= 170 and self.clear_stop_mission == False:
+                    self.brake()
+                    self.clear_stop_mission = True
+                    rospy.sleep(3.3) # 3.5초 동안 정지
+                    continue
+                # 재출발시 더 가속
+                elif 170 < current_waypoint <= 180:
+                    self.setMotorMsgWithVel(240)
+
+                # 시간 재기 위한 테스트 코드
+                # if current_waypoint >= 280:
+                #     self.brake()
+                #     rospy.sleep(3.3)
             # echo red, green count
-            # 내가 주석함 (성준)
             # print(f"green count: {self.green_count}\nred cound: {self.red_count}")
 
+
+                ###################################################################### 곡선 코스 미션  ######################################################################
+                if (529 < current_waypoint <= 560):
+                    self.setMotorMsgWithVel(15)
+
+                elif 1216 < current_waypoint <= 1256:
+                    self.setMotorMsgWithVel(15)
+
+            elif self.path_name == 'second_faster':
+                    
+                if 415 < current_waypoint <= 505: # 481 -> 461
+                    self.setMotorMsgWithVel(50)
+                    self.setServoMsgWithLfd(25)
+                    self.servo_msg /= 4
+                    self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                    continue
+
+                elif 505 < current_waypoint <= 530:
+                    self.setMotorMsgWithVel(13)
+                    self.setServoMsgWithLfd(25)
+                    self.servo_msg /= 3
+                    self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                    continue
+                
+                elif 530 < current_waypoint <= 545:
+                    self.setMotorMsgWithVel(19.5)
+                    self.setServoMsgWithLfd(25)
+                    self.servo_msg /= 3
+                    self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                    continue
+                
+                # else:
+                #     self.setMotorMsgWithVel(19.5)
+                #     self.setServoMsgWithLfd(20)
+                #     self.setBrakeMsgWithNum(0.0)
+
+            #     if 39 <= current_waypoint <= 107:
+            #         self.setMotorMsgWithVel(15)
+            #         self.setServoMsgWithLfd(4)
+
+            #     elif 108 <= current_waypoint <= 121:
+            #         self.setMotorMsgWithVel(15)
+            #         self.setServoMsgWithLfd(4 + (current_waypoint - 107))
+
+            #     elif 212 <= current_waypoint <= 275:
+            #         self.setMotorMsgWithVel(15)
+            #         self.setServoMsgWithLfd(4)
+
+            #     elif 276 <= current_waypoint <= 289:
+            #         self.setMotorMsgWithVel(15)
+            #         self.setServoMsgWithLfd(4 + (current_waypoint - 275))
+
+            #     elif 325 <= current_waypoint <= 380:
+            #         self.setMotorMsgWithVel(15)
+            #         self.setServoMsgWithLfd(4)
+                
+            #     elif 381 <= current_waypoint <= 384:
+            #         self.setMotorMsgWithVel(15)
+            #         self.setServoMsgWithLfd(4 + (current_waypoint - 380))
+                    
+            #     elif 643 <= current_waypoint <= 707 :
+            #         self.setMotorMsgWithVel(15)
+            #         self.setServoMsgWithLfd(4)
+                
+            #     elif 708 <= current_waypoint <= 721 :
+            #         self.setMotorMsgWithVel(15)
+            #         self.setServoMsgWithLfd(4 + (current_waypoint - 707))
             ########################################################################################################################################################
             self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
             rate.sleep()
@@ -179,6 +312,7 @@ class PurePursuit():
         self.req.gear = 4
         self.req.lamps.turnSignal = 2
         response = self.req_service(self.req)
+    #     self.gps_velocity = msg.
         self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
 
     def emergency_mode(self) :
@@ -245,15 +379,20 @@ class PurePursuit():
         self.green_count=msg.data[1]
         self.red_count=msg.data[0]
 
+
+    def velocityCB(self, msg):
+        self.gps_velocity = msg.data
+
 ###################################################################### Function ######################################################################
 
     def publishCtrlCmd(self, motor_msg, servo_msg, brake_msg):
-        self.ctrl_cmd_msg.accel = motor_msg
+        self.ctrl_cmd_msg.velocity = motor_msg
         self.ctrl_cmd_msg.steering = servo_msg
         self.ctrl_cmd_msg.brake = brake_msg
         # #print('pub', self.ctrl_cmd_msg.steering)
         self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
 
+    # 기존의 velocity 값으로 속도를 조절하던 코드
     def setMotorMsgWithVel(self, velocity):
         self.motor_msg = velocity
 

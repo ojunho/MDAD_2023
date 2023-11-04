@@ -3,4 +3,5 @@
     <node pkg="pure_pursuit" type="pure_pursuit.py" name="pure_pursuit" output="screen"/>
 
     <include file="$(find traffic_sign)/launch/traffic_sign.launch" />
+    <include file="$(find gps_velocity)/launch/gps_velocity.launch" />
 </launch>
