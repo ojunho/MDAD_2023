@@ -258,13 +258,13 @@ class PurePursuit():
                 self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
                 continue
 
-            # 현재 후진상태이면 속도 2, 조향각 더줌.
-            if self.yaw_rear == True :
-                self.setMotorMsgWithVel(2)
-                # self.setServoMsgWithLfd(1)
-                self.servo_msg *= 2
-                if self.path_name == 'parking_3':
-                    self.setServoMsgWithLfd(18)
+            # # 현재 후진상태이면 속도 2, 조향각 더줌.
+            # if self.yaw_rear == True :
+            #     self.setMotorMsgWithVel(2)
+            #     # self.setServoMsgWithLfd(1)
+            #     self.servo_msg *= 2
+            #     if self.path_name == 'parking_3':
+            #         self.setServoMsgWithLfd(18)
                 
 
             # T자 주차를 위한 path switching
@@ -272,6 +272,7 @@ class PurePursuit():
             if self.path_name == 'first_faster' and current_waypoint + 18  >= len(self.global_path.poses) :
                 self.setServoMsgWithLfd(len(self.global_path.poses) - current_waypoint)
                 
+            # waypoint 5개는 안보겠다는 코드
             if current_waypoint + 5  >= len(self.global_path.poses) :
                 if self.path_name == 'first_faster':
                     self.path_name = 'parking_1'
@@ -318,10 +319,11 @@ class PurePursuit():
 
 
 
-            #---------------------------- 두번째 코스 곡선 보정 -----------------------------------#
+            #---------------------------- 두번째 코스 시작 -----------------------------------#
 
             elif self.path_name == 'second_faster':
-                    
+
+                #---------------------------- 가속 구간 -----------------------------------#
                 if 415 < current_waypoint <= 505: # 481 -> 461
                     self.setMotorMsgWithVel(50)
                     self.setServoMsgWithLfd(25)
@@ -342,6 +344,21 @@ class PurePursuit():
                     self.servo_msg /= 3
                     self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
                     continue
+
+                #---------------------------- 종료 미션 -----------------------------------#
+                # 우측 방향지시등 점멸하고 통과하는 코드
+                elif 700 < current_waypoint <= 815:
+                    self.drive_right_signal()
+
+                # 완전 종료 후 정차 코드
+                elif 815 < current_waypoint <= 850:
+                    print("echo")
+                    self.motor_msg = 0
+                    self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                    self.parking()
+                    rospy.sleep(2)
+
+
                 
                 # else:
                 #     self.setMotorMsgWithVel(19.5)
