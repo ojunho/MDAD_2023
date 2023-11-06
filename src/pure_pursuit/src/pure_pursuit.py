@@ -29,8 +29,8 @@ class PurePursuit():
     def __init__(self):
         rospy.init_node('pure_pursuit', anonymous=True)
 
-        # self.path_name = 'first_faster'
-        self.path_name = 'second_faster'
+        self.path_name = 'first_faster'
+        # self.path_name = 'second_faster'
         self.passed_curve = False
 
         # Publisher
@@ -208,12 +208,117 @@ class PurePursuit():
             # print(f"green count: {self.green_count}\nred cound: {self.red_count}")
 
 
-                ###################################################################### 곡선 코스 미션  ######################################################################
+            #---------------------------- 곡선 코스 보정 -----------------------------------#
                 if (529 < current_waypoint <= 560):
                     self.setMotorMsgWithVel(15)
 
                 elif 1216 < current_waypoint <= 1256:
                     self.setMotorMsgWithVel(15)
+
+            #---------------------------- T자 코스 -----------------------------------#
+            if (self.path_name == 'parking_1' or 
+                self.path_name == 'parking_2' or 
+                self.path_name == 'parking_4'):
+
+                self.setMotorMsgWithVel(9)
+                # self.setServoMsgWithLfd(4)
+                self.servo_msg *= 2
+                
+                self.T_mission = True
+                if (self.path_name == 'parking_1' and current_waypoint + 10 >= len(self.global_path.poses)) : 
+                    self.setMotorMsgWithVel(2)
+
+                # 후진 조향각 40
+                elif (self.path_name == 'parking_2' and current_waypoint <= 85) :
+                    self.setMotorMsgWithVel(5)
+                    self.servo_msg = 40
+                    self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                    continue
+                
+                elif (self.path_name == 'parking_2' and  85 < current_waypoint < 116) : 
+                    self.setMotorMsgWithVel(5)
+                    self.servo_msg = 0
+                    self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                    continue
+
+                elif (self.path_name == 'parking_4' and current_waypoint <= 19) :
+                    self.setMotorMsgWithVel(5)
+                    # self.setServoMsgWithLfd(1)
+                    self.servo_msg *= 2
+                elif  (self.path_name == 'parking_4' and current_waypoint >= 20) :
+                    self.setMotorMsgWithVel(12)
+                    # self.setServoMsgWithLfd(5)
+                    self.servo_msg *= 1.4
+            else:
+                self.T_mission = False
+
+            if self.path_name == 'second_faster' and current_waypoint <= 25:
+                self.setMotorMsgWithVel(15)
+                # self.setServoMsgWithLfd(5)
+                self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                continue
+
+            # 현재 후진상태이면 속도 2, 조향각 더줌.
+            if self.yaw_rear == True :
+                self.setMotorMsgWithVel(2)
+                # self.setServoMsgWithLfd(1)
+                self.servo_msg *= 2
+                if self.path_name == 'parking_3':
+                    self.setServoMsgWithLfd(18)
+                
+
+            # T자 주차를 위한 path switching
+
+            if self.path_name == 'first_faster' and current_waypoint + 18  >= len(self.global_path.poses) :
+                self.setServoMsgWithLfd(len(self.global_path.poses) - current_waypoint)
+                
+            if current_waypoint + 5  >= len(self.global_path.poses) :
+                if self.path_name == 'first_faster':
+                    self.path_name = 'parking_1'
+                    self.global_path = path_reader.read_txt(self.path_name+".txt")
+                    # self.ctrl_cmd_msg.longlCmdType = 1
+                    self.is_swith_path = False
+
+                elif self.path_name == 'parking_1' and current_waypoint + 2 > len(self.global_path.poses): 
+                    self.path_name = 'parking_2'
+                    self.global_path = path_reader.read_txt(self.path_name+".txt")
+                    self.brake()
+                    self.is_swith_path = False
+                    # 후진기어 넣기 전 멈추는 코드
+                    for i in range(1000) :
+                        self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                    rospy.sleep(1.2)
+                    self.rear_mode()
+                    continue
+
+                elif self.path_name == 'parking_2' and current_waypoint +2 >= len(self.global_path.poses):
+                    self.path_name = 'parking_3'
+                    self.global_path = path_reader.read_txt(self.path_name+".txt")
+                    self.brake()
+                    rospy.sleep(1.2)
+                    self.forward_mode()
+      
+                elif self.path_name == 'parking_3' and current_waypoint +1 >= len(self.global_path.poses): 
+                    self.path_name = 'parking_4'
+                    self.global_path = path_reader.read_txt(self.path_name+".txt")
+                    self.brake()
+                    self.is_swith_path = False
+                    for i in range(1000) :
+                        self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                    rospy.sleep(1.2)
+                    self.forward_mode()
+
+
+                elif self.path_name == 'parking_4' and current_waypoint +5 >= len(self.global_path.poses): 
+                    self.path_name = 'second_faster'
+                    self.global_path = path_reader.read_txt(self.path_name+".txt")
+                    self.is_swith_path = False
+                    self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                    continue
+
+
+
+            #---------------------------- 두번째 코스 곡선 보정 -----------------------------------#
 
             elif self.path_name == 'second_faster':
                     
