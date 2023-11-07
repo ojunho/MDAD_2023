@@ -29,8 +29,8 @@ class PurePursuit():
     def __init__(self):
         rospy.init_node('pure_pursuit', anonymous=True)
 
-        self.path_name = 'first_faster'
-        # self.path_name = 'second_faster'
+        # self.path_name = 'first_faster'
+        self.path_name = 'second_faster'
         self.passed_curve = False
 
         # Publisher
@@ -138,6 +138,8 @@ class PurePursuit():
             self.next_start_waypoint = current_waypoint
 
             print("Current Waypoint: ", current_waypoint)
+            print("red", self.red_count)
+            print("green", self.green_count)
            
             self.pure_pursuit.getPath(local_path) ## pure_pursuit 알고리즘에 Local path 적용
         
@@ -215,10 +217,19 @@ class PurePursuit():
                 elif 1216 < current_waypoint <= 1256:
                     self.setMotorMsgWithVel(15)
 
+
+            #---------------------------- 신호등 -----------------------------------#
+            # 빨간 신호등 보면 멈출 위치 확인 & self.green_count - self.red_count 값 안전하게 400이하 -> 40으로 조정
+                if 582 < current_waypoint <= 597 and  self.green_count - self.red_count < 500: # 첫번째 신호등
+                    self.brake()
+            
+                if  1049 < current_waypoint <= 1057 and self.green_count - self.red_count < 500: # 두번째 신호등
+                    self.brake()
+
             #---------------------------- T자 코스 -----------------------------------#
             if (self.path_name == 'parking_1' or 
                 self.path_name == 'parking_2' or 
-                self.path_name == 'parking_4'):
+                self.path_name == 'parking_3'):
 
                 self.setMotorMsgWithVel(9)
                 # self.setServoMsgWithLfd(4)
@@ -241,11 +252,11 @@ class PurePursuit():
                     self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
                     continue
 
-                elif (self.path_name == 'parking_4' and current_waypoint <= 19) :
+                elif (self.path_name == 'parking_3' and current_waypoint <= 19) :
                     self.setMotorMsgWithVel(5)
                     # self.setServoMsgWithLfd(1)
                     self.servo_msg *= 2
-                elif  (self.path_name == 'parking_4' and current_waypoint >= 20) :
+                elif  (self.path_name == 'parking_3' and current_waypoint >= 20) :
                     self.setMotorMsgWithVel(12)
                     # self.setServoMsgWithLfd(5)
                     self.servo_msg *= 1.4
@@ -298,19 +309,8 @@ class PurePursuit():
                     self.brake()
                     rospy.sleep(1.2)
                     self.forward_mode()
-      
-                elif self.path_name == 'parking_3' and current_waypoint +1 >= len(self.global_path.poses): 
-                    self.path_name = 'parking_4'
-                    self.global_path = path_reader.read_txt(self.path_name+".txt")
-                    self.brake()
-                    self.is_swith_path = False
-                    for i in range(1000) :
-                        self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
-                    rospy.sleep(1.2)
-                    self.forward_mode()
 
-
-                elif self.path_name == 'parking_4' and current_waypoint +5 >= len(self.global_path.poses): 
+                elif self.path_name == 'parking_3' and current_waypoint +5 >= len(self.global_path.poses): 
                     self.path_name = 'second_faster'
                     self.global_path = path_reader.read_txt(self.path_name+".txt")
                     self.is_swith_path = False
@@ -322,6 +322,17 @@ class PurePursuit():
             #---------------------------- 두번째 코스 시작 -----------------------------------#
 
             elif self.path_name == 'second_faster':
+
+                #---------------------------- 신호등 -----------------------------------#
+                # 빨간 신호등 보면 멈출 위치 확인 & self.green_count - self.red_count 값 안전하게 400이하 -> 40으로 조정
+                if 33 < current_waypoint <= 41:
+                    
+                    self.drive_left_signal()
+                    if (self.red_count - self.green_count > 150): # 첫번째 신호등
+                        self.brake()
+                elif 117 < current_waypoint <= 120:
+                    self.forward_mode()
+
 
                 #---------------------------- 가속 구간 -----------------------------------#
                 if 415 < current_waypoint <= 505: # 481 -> 461
@@ -347,16 +358,18 @@ class PurePursuit():
 
                 #---------------------------- 종료 미션 -----------------------------------#
                 # 우측 방향지시등 점멸하고 통과하는 코드
-                elif 700 < current_waypoint <= 815:
+                elif 700 < current_waypoint <= 817:
                     self.drive_right_signal()
 
                 # 완전 종료 후 정차 코드
-                elif 815 < current_waypoint <= 850:
+                elif 817 < current_waypoint <= 850:
                     print("echo")
                     self.motor_msg = 0
                     self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+                    rospy.sleep(1)
                     self.parking()
-                    rospy.sleep(2)
+                    continue
+                    
 
 
                 
@@ -449,7 +462,7 @@ class PurePursuit():
         self.req.gear = 1
         self.req.lamps.turnSignal = 0
         response = self.req_service(self.req)
-        self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
+
 
     def brake(self) :
         self.ctrl_cmd_msg.longlCmdType = 1
