@@ -29,9 +29,9 @@ class PurePursuit():
     def __init__(self):
         rospy.init_node('pure_pursuit', anonymous=True)
 
-        # self.path_name = 'first_faster'
-        self.path_name = 'second_faster'
-        self.passed_curve = False
+        self.path_name = 'first_faster'
+        # self.path_name = 'second_faster'
+        
 
         # Publisher
         self.global_path_pub= rospy.Publisher('/global_path', Path, queue_size=1) ## global_path publisher 
@@ -42,6 +42,11 @@ class PurePursuit():
         rospy.Subscriber("/imu", Imu, self.ImuCB) ## Vehicle Status Subscribe
         rospy.Subscriber("/traffic_light", Int64MultiArray, self.trafficCB)
         rospy.Subscriber("/gps_velocity", Float64, self.velocityCB)
+        rospy.Subscriber("/s_ctrl_cmd", CtrlCmd, self.sMissionCB) # Drive for camera
+
+
+        self.s_flag = True
+        self.start_s_flag = 0
 
         # traffic sign
         self.traffic_signal = 0
@@ -138,8 +143,8 @@ class PurePursuit():
             self.next_start_waypoint = current_waypoint
 
             print("Current Waypoint: ", current_waypoint)
-            print("red", self.red_count)
-            print("green", self.green_count)
+            # print("red", self.red_count)
+            # print("green", self.green_count)
            
             self.pure_pursuit.getPath(local_path) ## pure_pursuit 알고리즘에 Local path 적용
         
@@ -225,6 +230,32 @@ class PurePursuit():
             
                 if  1049 < current_waypoint <= 1057 and self.green_count - self.red_count < 500: # 두번째 신호등
                     self.brake()
+
+                # if self.path_name == 'first_faster' and 746 <= current_waypoint <= 820 : # S자 코스 진입 Slow down
+                
+                
+            # #---------------------------- s자 -----------------------------------#
+                if 760 < current_waypoint <= 777 and self.s_flag:
+                    self.motor_msg = 15
+                    
+                if 777 < current_waypoint <= 789 and self.s_flag:
+                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    self.servo_msg = -40
+                    self.motor_msg = 3
+                    
+                    
+                if self.original_latitude <= 1.0 and self.original_longitude <= 1.0 and self.s_flag : # GPS 음영구역 진입 시 Camera Steering으로 주행
+                    if self.start_s_flag == 0:
+                        sec_s = time.time()
+                        while time.time() - sec_s <= 1.3:
+                            print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+                            self.publishCtrlCmd(5, -5, self.brake_msg)
+                        self.start_s_flag = 1
+                    else:
+                        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+                        self.publishCtrlCmd(self.camera_motor_msg, self.camera_servo_msg, self.brake_msg)
+                        continue
+                    #     # self.servo_msg *= 2
 
             #---------------------------- T자 코스 -----------------------------------#
             if (self.path_name == 'parking_1' or 
@@ -363,7 +394,7 @@ class PurePursuit():
 
                 # 완전 종료 후 정차 코드
                 elif 817 < current_waypoint <= 850:
-                    print("echo")
+                    # print("echo")
                     self.motor_msg = 0
                     self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
                     rospy.sleep(1)
@@ -418,7 +449,7 @@ class PurePursuit():
     # option - 1 : ctrl_mode / 2 : gear / 4 : lamps / 6 : gear + lamps
     # gear - 1: P / 2 : R / 3 : N / 4 : D
 ##############################################################################################################################################################
-
+    
     def forward_mode(self):
         self.req.option = 6
         self.req.gear = 4
@@ -472,6 +503,11 @@ class PurePursuit():
         self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
     
 ###################################################################### Call Back ######################################################################
+    def sMissionCB(self, msg) : 
+        # #print(msg)
+        self.camera_servo_msg = msg.steering
+        self.camera_motor_msg = msg.velocity
+
     def gpsCB(self, msg): 
         #UTMK
         self.original_longitude = msg.longitude

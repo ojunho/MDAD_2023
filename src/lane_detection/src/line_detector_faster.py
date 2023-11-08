@@ -28,18 +28,20 @@ class Controller() :
         self.bridge = CvBridge()
         self.warper = Warper()
         self.slidewindow = SlideWindow()
+        self.ctrl_cmd_msg = CtrlCmd()
+        self.odom_msg = Odometry()
+
+
         self.original_img = []
+        self.yaw = 0.0
+        self.waypoint = 0
+
+
         self.image_sub = rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.image_callback)
         self.waypoint_sub = rospy.Subscriber("/waypoint", Int64, self.waypointCB)
         self.mission_sub = rospy.Subscriber("/mission", Bool, self.mission_callback)
-        self.yaw = 0.0
-        self.waypoint = 0
-        self.odom_msg = Odometry()
-        # self.ctrl_cmd_pub = rospy.Publisher('/ctrl_cmd', CtrlCmd, queue_size=1)
-        self.ctrl_cmd_pub = rospy.Publisher('/ctrl_cmd', CtrlCmd, queue_size=1)
-        self.ctrl_cmd_msg = CtrlCmd()
-
-        # self.camera_steering_pub= rospy.Publisher('/cam_steer', CtrlCmd, queue_size=1)
+        self.ctrl_cmd_pub = rospy.Publisher('/s_ctrl_cmd', CtrlCmd, queue_size=1)
+    
 
         # slide window return variable initialization
         self.slide_img = None 
@@ -51,6 +53,9 @@ class Controller() :
         self.error_lane = 0
         self.steering_val = 0
         self.mission = False
+
+        #trash
+        self.epoch = 0
 
         
 
@@ -71,11 +76,7 @@ class Controller() :
             
             self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
             rate.sleep()
-
-
-
-
-        # rospy.Subscriber("/image_jpeg/compressed", Image, self.image_callback)
+        
         rospy.spin()
     
     # def runnung(self, _event) :
@@ -102,7 +103,11 @@ class Controller() :
 
         quaternion = (self.odom_msg.pose.pose.orientation.x,self.odom_msg.pose.pose.orientation.y,self.odom_msg.pose.pose.orientation.z,self.odom_msg.pose.pose.orientation.w)
         _, _, self.yaw =  euler_from_quaternion(quaternion)
-        self.yaw = degrees(self.yaw) 
+        self.yaw = degrees(self.yaw)
+
+        self.epoch += 1
+        if self.epoch % 100 == 0:
+            print(self.yaw)
 
     def click_event(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -111,38 +116,10 @@ class Controller() :
 
 
     def image_callback(self, _data) :
-        # #print(type(_data))
-        # if self.initialized == False:
-        #     cv2.namedWindow("Simulator_Image", cv2.WINDOW_NORMAL) 
-        #     cv2.createTrackbar('low_H', 'Simulator_Image', 50, 255, nothing)
-        #     cv2.createTrackbar('low_S', 'Simulator_Image', 50, 255, nothing)
-        #     cv2.createTrackbar('low_V', 'Simulator_Image', 50, 255, nothing)
-        #     cv2.createTrackbar('high_H', 'Simulator_Image', 255, 255, nothing)
-        #     cv2.createTrackbar('high_S', 'Simulator_Image', 255, 255, nothing)
-        #     cv2.createTrackbar('high_V', 'Simulator_Image', 255, 255, nothing)
-        #     self.initialized = True
-
-    
-
-        # if (self.original_longitude  <= 1 and self.original_latitude <=  1 and self.mission == True) or  (905 <= self.waypoint <=  990):
-        if True:
-            #print('lane')
-
+        if (self.original_longitude  <= 1 and self.original_latitude <=  1):
             cv2_image = self.bridge.compressed_imgmsg_to_cv2(_data)
-            # cv2.imshow("original", cv2_image)
-
-
-            # low_H = cv2.getTrackbarPos('low_H', 'Simulator_Image')
-            # low_S = cv2.getTrackbarPos('low_S', 'Simulator_Image')
-            # low_V = cv2.getTrackbarPos('low_V', 'Simulator_Image')
-            # high_H = cv2.getTrackbarPos('high_H', 'Simulator_Image')
-            # high_S = cv2.getTrackbarPos('high_S', 'Simulator_Image')
-            # high_V = cv2.getTrackbarPos('high_V', 'Simulator_Image')
-
 
             hsv_image = cv2.cvtColor(cv2_image, cv2.COLOR_BGR2HSV)
-            # lower_lane = np.array([low_H, low_S, low_V]) 
-            # upper_lane = np.array([high_H, high_S, high_V])
 
             lower_lane = np.array([0, 0, 126]) #0 46 170 / white lane: 0 0 126
             upper_lane = np.array([255, 64, 180]) #79 255 255 / white lane : 255, 64, 180
@@ -154,109 +131,47 @@ class Controller() :
             blur_lane = cv2.GaussianBlur(lane_mask, (ksize, ksize), 0)
 
             _, lane_image = cv2.threshold(blur_lane, 200, 255, cv2.THRESH_BINARY)
-            #0.56
-            # cv2.imshow("Lane Image", lane_image)
 
             warper_image = self.warper.warp(lane_image)
             cv2.imshow("warper", warper_image)
-
-            # cv2.circle(cv2_image,  (0, 450),5,(255,0,0),5) #w h
-            # cv2.circle(cv2_image, (160, 300),5,(0,0,255),5)
-
-            # cv2.circle(cv2_image, (480, 300),5,(255,255,0),5)
-            # cv2.circle(cv2_image, (640, 450),5,(0,255,255),5)
-            # #print(cv2_image)
             self.slide_img, self.slide_x_location, self.current_lane_window = self.slidewindow.slidewindow(warper_image, self.yaw)
-            print(self.slide_x_location)
+
             cv2.imshow("slide_img", self.slide_img)
             cv2.setMouseCallback('slide_img', self.click_event)
 
             gray_image = cv2.cvtColor(cv2_image, cv2.COLOR_BGR2GRAY)
-
-            # low_B = cv2.getTrackbarPos('low_H', 'Simulator_Image')
-            # low_G = cv2.getTrackbarPos('low_S', 'Simulator_Image')
-            # low_R = cv2.getTrackbarPos('low_V', 'Simulator_Image')
-            # high_B = cv2.getTrackbarPos('high_H', 'Simulator_Image')
-            # high_G = cv2.getTrackbarPos('high_S', 'Simulator_Image')
-            # high_R = cv2.getTrackbarPos('high_V', 'Simulator_Image')
             lower_c = np.array([0, 156, 190]) 
             upper_c = np.array([219, 190, 255])
 
             s_image = cv2.inRange(cv2_image, lower_c, upper_c)
-            # cv2.imshow("s", s_image)
+
             s_mask = cv2.inRange(s_image, 150, 255)
             blur_curve = cv2.GaussianBlur(s_mask, (ksize, ksize), 0)
             _, s_img = cv2.threshold(blur_curve, 200, 255, cv2.THRESH_BINARY)
             warper_s = self.warper.warp(s_img)
 
             self.curve_img, self.angle = self.slidewindow.curve(warper_s)
-            # #print("angle", self.angle)
+
             cv2.imshow("out", self.curve_img)
 
-
-
-
-
-            # if self.yaw <= -20 :
-            #     self.slide_x_location += 10
-
-            # cv2.imshow("original", cv2_image)
+            if self.yaw <= -30 :
+                self.slide_x_location += 80
             cv2.waitKey(1)
-            # cv2.imshow("warper", warper_s)
-            # cv2.waitKey(1)
-        
-            # #print("success")
-            # try :
-            #     cv2_image = self.bridge.compressed_imgmsg_to_cv2(_data)
-            #     # cv2_image = self.bridge.imgmsg_to_cv2(_data)
-            #     cv2_image = self.bridge.cv2_to_imgmsg(cv2_image, encoding="bgr8")
-            #     # self.original_img = cv2_image
-            #     cv2.imshow("original", cv2_image)
-            #     #print("success")
-            # except :
-            #     #print("fail")
-            #     pass
 
-
-
-            # self.x_location : 현재 차선에서 중앙 값
-            # middle x location : 320
-        
             self.error_lane = 320 - self.slide_x_location 
 
             if self.slide_x_location < 270 or self.slide_x_location > 370:
-                self.motor_msg = 14
+                self.motor_msg = 10
                 self.steering_val = self.error_lane * 0.004
             else:
                 self.motor_msg = 20
-                self.steering_val = self.error_lane * 0.001
-
-
-            if self.yaw < -25 and abs(self.angle) <= 75 :
-                # print("####################")
-                self.motor_msg = 3
-                self.steering_val = (90 - abs(self.angle))*-0.7
-
-        # self.camera_steering_pub.publish(self.steering_val)
-
-    # def publishCtrlCmd(self, motor_msg, servo_msg, brake_msg):
-
-    #     self.ctrl_cmd_msg.velocity = motor_msg
-    #     self.ctrl_cmd_msg.steering = self.steering_val
-    #     self.ctrl_cmd_msg.el = brake_msg
-    #     self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
+                self.steering_val = self.error_lane * 0.004
     
     def publishCtrlCmd(self, motor_msg, servo_msg, brake_msg):
         self.ctrl_cmd_msg.velocity = motor_msg
         self.ctrl_cmd_msg.steering = self.steering_val
         self.ctrl_cmd_msg.brake = brake_msg
-        # #print('pub', self.ctrl_cmd_msg.steering)
         self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
-
-
-
-
-
 
 def nothing(x):
     pass
