@@ -6,9 +6,9 @@
 # testing this directory and lists subdirectories to be tested as well.
 subdirs("gtest")
 subdirs("morai_msgs")
-subdirs("beginner_tutorials_blanks")
 subdirs("gps_velocity")
 subdirs("lane_detection")
 subdirs("path_maker")
 subdirs("pure_pursuit")
+subdirs("object_detector")
 subdirs("traffic_sign")

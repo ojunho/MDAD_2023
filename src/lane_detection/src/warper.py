@@ -11,7 +11,7 @@ class Warper:
         print("h : " ,h)
         print("w : " ,w)
 
-        src = np.float32([ # 4개의 원본 좌표 점
+        src = np.float32([
             [0, 450],
             [160, 300],
             [480, 300],
@@ -19,23 +19,23 @@ class Warper:
         ])
 
 
-        dst = np.float32([ # 4개의 결과 좌표 점
-            [160, h], # [416, 470.4] # 좌하
-            [160, 300], # [224, 470.4] # 좌상
-            [480, 300], # [-192, 0] # 우상
-            [480,h] # [832, 0] # 우하
+        dst = np.float32([
+            [160, h],   # 좌하
+            [160, 300], # 좌상
+            [480, 300], # 우상
+            [480,h]     # 우하
         ])
 
         
         
-        self.M = cv2.getPerspectiveTransform(src, dst) # self.M : 투시변환 행렬(src to dst)
-        self.Minv = cv2.getPerspectiveTransform(dst, src) # self.Minv : 투시변환 행렬(dst to src)
+        self.M = cv2.getPerspectiveTransform(src, dst)
+        self.Minv = cv2.getPerspectiveTransform(dst, src)
 
     def warp(self, img): 
         return cv2.warpPerspective(
             img,
             self.M, 
-            (img.shape[1], img.shape[0]), # img w, h
+            (img.shape[1], img.shape[0]),
             flags=cv2.INTER_LINEAR
         )
 

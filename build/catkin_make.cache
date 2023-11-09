@@ -1,2 +1,2 @@
-beginner_tutorials_blanks:gps_velocity:lane_detection:morai_msgs:path_maker:pure_pursuit:traffic_sign
+gps_velocity:lane_detection:morai_msgs:object_detector:path_maker:pure_pursuit:traffic_sign
 -DCATKIN_DEVEL_PREFIX=/home/mdad/MDAD_2023/devel -DCMAKE_INSTALL_PREFIX=/home/mdad/MDAD_2023/install -G Unix Makefiles

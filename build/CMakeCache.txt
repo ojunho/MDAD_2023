@@ -822,6 +822,12 @@ nodelet_DIR:PATH=/opt/ros/noetic/share/nodelet/cmake
 nodelet_topic_tools_DIR:PATH=/opt/ros/noetic/share/nodelet_topic_tools/cmake
 
 //Value Computed by CMake
+object_detector_BINARY_DIR:STATIC=/home/mdad/MDAD_2023/build/object_detector
+
+//Value Computed by CMake
+object_detector_SOURCE_DIR:STATIC=/home/mdad/MDAD_2023/src/object_detector
+
+//Value Computed by CMake
 obstacle_detection_BINARY_DIR:STATIC=/home/mdad/MDAD_2023/build/obstacle_detection
 
 //Value Computed by CMake

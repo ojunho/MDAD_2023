@@ -132,11 +132,11 @@ if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
   include("/home/mdad/MDAD_2023/build/gtest/cmake_install.cmake")
   include("/home/mdad/MDAD_2023/build/morai_msgs/cmake_install.cmake")
-  include("/home/mdad/MDAD_2023/build/beginner_tutorials_blanks/cmake_install.cmake")
   include("/home/mdad/MDAD_2023/build/gps_velocity/cmake_install.cmake")
   include("/home/mdad/MDAD_2023/build/lane_detection/cmake_install.cmake")
   include("/home/mdad/MDAD_2023/build/path_maker/cmake_install.cmake")
   include("/home/mdad/MDAD_2023/build/pure_pursuit/cmake_install.cmake")
+  include("/home/mdad/MDAD_2023/build/object_detector/cmake_install.cmake")
   include("/home/mdad/MDAD_2023/build/traffic_sign/cmake_install.cmake")
 
 endif()

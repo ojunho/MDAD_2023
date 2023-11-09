@@ -1,0 +1,4 @@
+<launch>
+    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch" />
+    <node pkg="object_detector" type="object_detector" name="object_detector_node" output="screen"/>
+</launch>
