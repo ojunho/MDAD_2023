@@ -108,10 +108,12 @@ class PurePursuit():
         self.red_count = 0
 
         self.obs_count = 0
+        
 
         self.T_mission = False
 
         self.dy_obs_mission = False
+        self.obs_done = True
 
         self.steering_offset = 0.06
 
@@ -141,7 +143,7 @@ class PurePursuit():
 
             self.next_start_waypoint = current_waypoint
 
-            # print("Current Waypoint: ", current_waypoint)
+            print("Current Waypoint: ", current_waypoint)
             # print("red_traffic", self.red_count)
             # print("green_traffic", self.green_count)
            
@@ -234,18 +236,12 @@ class PurePursuit():
 
                 if (1000 <= current_waypoint <= 1040 or 1190 <= current_waypoint <= 1220 or 1345 <= current_waypoint <= 1400 and not self.dy_obs_mission ):
                     if(len(self.obs) > 0):
-                        while(True):
+                        sec = time.time()
+                        while time.time() - sec <= 3:
                             self.brake()
                             self.emergency_mode()
                             self.dy_obs_mission = True
-                            # print(abs(self.obs[1]))
-                            if(len(self.obs) == 0):
-                                break
-                            # if(self.obs[1] <= 2):
-                            #     break
-                        continue
-                if(self.dy_obs_mission):
-                    self.D_mode()
+                        self.D_mode()
 
             #---------------------------- T자 코스 -----------------------------------#
             if (self.path_name == 'parking_1' or 
@@ -291,6 +287,7 @@ class PurePursuit():
 
             if self.path_name == 'before_parking' and current_waypoint + 18  >= len(self.global_path.poses) :
                 self.setSteering(len(self.global_path.poses) - current_waypoint)
+
                 
             # waypoint 5개는 안보겠다는 코드
             if current_waypoint + 5  >= len(self.global_path.poses) :
@@ -361,6 +358,20 @@ class PurePursuit():
                     self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
                     continue
 
+                #--------------------------------after_parking _ 장애물 미션--------------------------------#
+                if (101 <= current_waypoint <= 160 or 595 <= current_waypoint <= 643) and self.dy_obs_mission == False:
+                    if(len(self.obs) > 0):
+                        sec = time.time()
+                        while time.time() - sec <= 3:
+                            self.brake()
+                            self.emergency_mode()
+                            self.dy_obs_mission = True
+                        self.D_mode()
+                        
+
+                # if self.dy_obs_mission and (160 < current_waypoint <= 170 or 643 < current_waypoint <= 653):
+                #     self.D_mode()
+
                 #---------------------------- 종료 미션 -----------------------------------#
                 # 우측 방향지시등 점멸하고 통과하는 코드
                 elif 700 < current_waypoint <= 817:
@@ -374,6 +385,8 @@ class PurePursuit():
                     rospy.sleep(1)
                     self.parking()
                     continue
+
+
                     
             self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
             rate.sleep()
@@ -428,10 +441,9 @@ class PurePursuit():
 
 
     def brake(self) :
-        self.ctrl_cmd_msg.longlCmdType = 1
         self.motor_msg = 0.0
         self.servo_msg = 0.0
-        self.brake_msg = 1.0
+        self.brake_msg = 0.0
         self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
     
 #----------------------------------------------------------------------------------콜백 함수들 --------------------------------------------------------------------#
@@ -448,6 +460,7 @@ class PurePursuit():
         self.lon = msg.longitude
         
         self.convertLL2UTM()
+
         self.br.sendTransform((self.x, self.y, 0.),
                          tf.transformations.quaternion_from_euler(0,0,0.),
                          rospy.Time.now(),
