@@ -17,6 +17,7 @@ from morai_msgs.msg import GPSMessage, CtrlCmd, EventInfo
 from morai_msgs.srv import MoraiEventCmdSrv
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from defined_func import pathLoader,findLocalPath,purePursuit
+from object_detector.msg import ObjectInfo
 
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -43,6 +44,7 @@ class PurePursuit():
         rospy.Subscriber("/gps_velocity", Float64, self.velocityCallback)
         rospy.Subscriber("/s_ctrl_cmd", CtrlCmd, self.sMissionCallback) # Drive for camera
         rospy.Subscriber("/bounding_box", MarkerArray, self.ObstacleCallback)
+        rospy.Subscriber("/object_info", ObjectInfo, self.obsCountCallback)
 
 
         # service
@@ -50,7 +52,7 @@ class PurePursuit():
         self.req_service = rospy.ServiceProxy('/Service_MoraiEventCmd', MoraiEventCmdSrv)
         self.req = EventInfo()
 
-        self.obs_x = 0
+        self.obs = []
 
         self.s_flag = True
         self.start_s_flag = 0
@@ -96,8 +98,6 @@ class PurePursuit():
         self.clear_stop_mission = False
         self.clear_start_mission = False
 
-        self.dynamic_flag = False
-        self.dynamic_done = False
 
         self.curve_servo_msg = 0.0
         self.curve_motor_msg = 0.0
@@ -107,10 +107,11 @@ class PurePursuit():
         self.green_count = 0
         self.red_count = 0
 
-        self.dy_obs_info = [0, 0, 0, 0]
+        self.obs_count = 0
 
         self.T_mission = False
 
+        self.dy_obs_mission = False
 
         self.steering_offset = 0.06
 
@@ -140,7 +141,7 @@ class PurePursuit():
 
             self.next_start_waypoint = current_waypoint
 
-            print("Current Waypoint: ", current_waypoint)
+            # print("Current Waypoint: ", current_waypoint)
             # print("red_traffic", self.red_count)
             # print("green_traffic", self.green_count)
            
@@ -187,13 +188,16 @@ class PurePursuit():
                 # 재출발시 더 가속
                 elif 170 < current_waypoint <= 180:
                     self.setVelocity(240)
-
+            
+            #---------------------------- 직각 코스 -----------------------------------#
+                # if self.original_latitude <= 1.0 and self.original_longitude <= 1.0:
+                    
 
             #---------------------------- 곡선 코스 보정 -----------------------------------#
                 if (529 < current_waypoint <= 560):
                     self.setVelocity(15)
 
-                elif 1216 < current_waypoint <= 1256:
+                if 1216 < current_waypoint <= 1256:
                     self.setVelocity(15)
 
 
@@ -204,8 +208,7 @@ class PurePursuit():
                 if  1049 < current_waypoint <= 1057 and self.green_count - self.red_count < 500: # 두번째 신호등
                     self.brake()
                 
-                
-            # #---------------------------- s자 -----------------------------------#
+            #---------------------------- s자 -----------------------------------#
                 if 760 < current_waypoint <= 777 and self.s_flag:
                     self.motor_msg = 15
                     
@@ -215,7 +218,7 @@ class PurePursuit():
                     self.motor_msg = 3
                     
                     
-                if self.original_latitude <= 1.0 and self.original_longitude <= 1.0 and self.s_flag : # GPS 음영구역 진입 시 Camera Steering으로 주행
+                if self.original_latitude <= 1.0 and self.original_longitude <= 1.0 and self.s_flag: # GPS 음영구역 진입 시 Camera Steering으로 주행
                     if self.start_s_flag == 0:
                         sec_s = time.time()
                         while time.time() - sec_s <= 1.3:
@@ -226,6 +229,23 @@ class PurePursuit():
                         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
                         self.publishCtrlCmd(self.sliding_motor_msg, self.sliding_steering_msg, self.brake_msg)
                         continue
+            
+            #---------------------------- 동적 장애물 -----------------------------------#
+
+                if (1000 <= current_waypoint <= 1040 or 1190 <= current_waypoint <= 1220 or 1345 <= current_waypoint <= 1400 and not self.dy_obs_mission ):
+                    if(len(self.obs) > 0):
+                        while(True):
+                            self.brake()
+                            self.emergency_mode()
+                            self.dy_obs_mission = True
+                            # print(abs(self.obs[1]))
+                            if(len(self.obs) == 0):
+                                break
+                            # if(self.obs[1] <= 2):
+                            #     break
+                        continue
+                if(self.dy_obs_mission):
+                    self.D_mode()
 
             #---------------------------- T자 코스 -----------------------------------#
             if (self.path_name == 'parking_1' or 
@@ -442,6 +462,7 @@ class PurePursuit():
         self.odom_msg.pose.pose.position.y = self.y
         self.odom_msg.pose.pose.position.z = 0
 
+
     def convertLL2UTM(self) :
         xy_zone = self.proj_UTM(self.lon, self.lat)
         self.x, self.y = xy_zone[0], xy_zone[1]
@@ -465,17 +486,28 @@ class PurePursuit():
     def velocityCallback(self, msg):
         self.gps_velocity = msg.data
     
+    # 
     def ObstacleCallback(self, msg):
-
         # 장애물 없을경우 예외처리 size() > 0 이런식
-        # tmp_x = []
-        # for i in range(len(msg.markers)):
-        #     tmp_x.append(msg.markers[i].pose.position.x)
-        # self.obs_x = min(tmp_x)
+        if len(msg.markers) > 0 and self.obs_count > 0:
+            obs = []
+            for i in range(len(msg.markers)):
+                if(0 < msg.markers[i].pose.position.x < 7.0 and abs(msg.markers[i].pose.position.y) <= 2.6):
+                    obs.append([(msg.markers[i].pose.position.x, msg.markers[i].pose.position.y)])
+            if(len(obs) > 0):
+                self.obs = sorted(obs, key = lambda x: obs[0])[0]
+            # print(self.obs)
+            
+        else:
+            self.obs = []
 
-        # print(self.obs_x)
+    # 
+    def obsCountCallback(self, msg):
+        self.obs_count = msg.objectCounts
+        
+        
+        # print(self.obs_count)
 
-        pass
         
             
     

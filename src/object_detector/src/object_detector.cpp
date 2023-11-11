@@ -102,7 +102,7 @@ pcl::PointCloud<PointT>::Ptr ROI (const sensor_msgs::PointCloud2ConstPtr& input)
     sensor_msgs::PointCloud2 roi_raw;
     pcl::toROSMsg(*cloud_filtered, roi_raw);
     
-    // pubROI.publish(roi_raw);
+    pubROI.publish(roi_raw);
 
     return cloud_filtered;
 }
@@ -126,8 +126,11 @@ pcl::PointCloud<PointT>::Ptr voxelGrid(pcl::PointCloud<PointT>::Ptr input) {
 
 void cluster(pcl::PointCloud<PointT>::Ptr input) {
     if (input->empty())
+    {
+        objectInfoMsg.objectCounts = 0;
+        pubObjectInfo.publish(objectInfoMsg);
         return;
-
+    }
     //KD-Tree
     pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
     pcl::PointCloud<clusterPointT>::Ptr clusterPtr(new pcl::PointCloud<clusterPointT>);
@@ -219,7 +222,7 @@ void visualizeObject() {
         objectShape.color.b = 1.0;
         objectShape.color.a = 0.8;
 
-        objectShape.lifetime = ros::Duration(0.1);
+        // objectShape.lifetime = ros::Duration(0.1);
         objectShapeArray.markers.emplace_back(objectShape);
     }
 
