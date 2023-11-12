@@ -6,4 +6,5 @@
     <include file="$(find traffic_sign)/launch/traffic_sign.launch" />
     <include file="$(find gps_velocity)/launch/gps_velocity.launch" />
     <include file="$(find lane_detection)/launch/lane_detection_faster.launch" />
+    <include file="$(find lane_detection)/launch/lane_detection_z.launch" />
 </launch>

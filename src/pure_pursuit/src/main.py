@@ -8,8 +8,8 @@ import tf
 import time
 from math import *
 from nav_msgs.msg import Path, Odometry
-from std_msgs.msg import Float64, Int64MultiArray, Float64MultiArray, Int64
-from sensor_msgs.msg import Imu
+from std_msgs.msg import Float64, Int64MultiArray, Float64MultiArray, Int64, Int16MultiArray
+from sensor_msgs.msg import Imu, CompressedImage
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import MarkerArray
 from pyproj import Proj, transform
@@ -43,9 +43,15 @@ class PurePursuit():
         rospy.Subscriber("/traffic_light", Int64MultiArray, self.trafficCallback)
         rospy.Subscriber("/gps_velocity", Float64, self.velocityCallback)
         rospy.Subscriber("/s_ctrl_cmd", CtrlCmd, self.sMissionCallback) # Drive for camera
+        rospy.Subscriber("/z_ctrl_cmd", CtrlCmd, self.zMissionCallback)
+        rospy.Subscriber("/z_curve", Int16MultiArray, self.zCurveCallback)
         rospy.Subscriber("/bounding_box", MarkerArray, self.ObstacleCallback)
         rospy.Subscriber("/object_info", ObjectInfo, self.obsCountCallback)
 
+        # wait for message
+        # rospy.wait_for_message("/image_jpeg/compressed", CompressedImage)
+        # rospy.wait_for_message("/gps", GPSMessage)
+        # rospy.wait_for_message("/imu", Imu)
 
         # service
         rospy.wait_for_service('/Service_MoraiEventCmd')
@@ -54,7 +60,7 @@ class PurePursuit():
 
         self.obs = []
 
-        self.s_flag = True
+        self.s_flag = False
         self.start_s_flag = 0
 
         # 신호등
@@ -94,6 +100,15 @@ class PurePursuit():
 
         self.sliding_steering_msg = 0.0
         self.sliding_motor_msg = 10.0
+
+        self.z_sliding_steering_msg = 0.0
+        self.z_sliding_motor_msg = 10.0
+
+        self.first_curve = 0
+        self.second_curve = 0
+
+        self.z_first = 0
+        self.z_second = 0
 
         self.clear_stop_mission = False
         self.clear_start_mission = False
@@ -143,7 +158,7 @@ class PurePursuit():
 
             self.next_start_waypoint = current_waypoint
 
-            print("Current Waypoint: ", current_waypoint)
+            # print("Current Waypoint: ", current_waypoint)
             # print("red_traffic", self.red_count)
             # print("green_traffic", self.green_count)
            
@@ -192,9 +207,31 @@ class PurePursuit():
                     self.setVelocity(240)
             
             #---------------------------- 직각 코스 -----------------------------------#
-                # if self.original_latitude <= 1.0 and self.original_longitude <= 1.0:
-                    
+                if (280 < current_waypoint <= 374):
+                    self.setVelocity(15)
 
+                if self.original_latitude <= 1.0 and self.original_longitude <= 1.0 and self.s_flag == False:
+                    if self.first_curve == 1 and self.second_curve == 0 and self.z_first == 0:
+                        sec = time.time()
+                        while time.time() - sec <= 4:
+                            self.publishCtrlCmd(10, 40, self.brake_msg)
+                        self.z_first = 1
+                    elif self.first_curve == 1 and self.second_curve == 1 and self.z_second == 0:
+                        sec = time.time()
+                        while time.time() - sec <= 4:
+                            self.publishCtrlCmd(10, -40, self.brake_msg)
+                        self.z_second = 1
+
+                    else:
+                        if self.z_second == 1:
+                            self.publishCtrlCmd(19.75, self.z_sliding_steering_msg, self.brake_msg)
+                        else:
+                            self.publishCtrlCmd(3, self.z_sliding_steering_msg, self.brake_msg)
+                    continue
+
+                if 490 < current_waypoint <= 510:
+                    self.s_flag = True
+                    
             #---------------------------- 곡선 코스 보정 -----------------------------------#
                 if (529 < current_waypoint <= 560):
                     self.setVelocity(15)
@@ -224,11 +261,11 @@ class PurePursuit():
                     if self.start_s_flag == 0:
                         sec_s = time.time()
                         while time.time() - sec_s <= 1.3:
-                            print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+                            # print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
                             self.publishCtrlCmd(5, -5, self.brake_msg)
                         self.start_s_flag = 1
                     else:
-                        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+                        # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
                         self.publishCtrlCmd(self.sliding_motor_msg, self.sliding_steering_msg, self.brake_msg)
                         continue
             
@@ -338,7 +375,7 @@ class PurePursuit():
 
                 #---------------------------- 가속 구간 -----------------------------------#
                 if 415 < current_waypoint <= 505: # 481 -> 461
-                    self.setVelocity(50)
+                    self.setVelocity(40)
                     self.setSteering(25)
                     self.servo_msg /= 4
                     self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
@@ -450,6 +487,16 @@ class PurePursuit():
     def sMissionCallback(self, msg) : 
         self.sliding_steering_msg = msg.steering
         self.sliding_motor_msg = msg.velocity
+
+    def zMissionCallback(self, msg) : 
+        self.z_sliding_steering_msg = msg.steering
+        self.z_sliding_motor_msg = msg.velocity
+
+    def zCurveCallback(self, msg):
+        self.first_curve = msg.data[0]
+        self.second_curve = msg.data[1]
+
+        # print(self.first_curve, self.second_curve)
 
     def gpsCallback(self, msg): 
         #UTMK
