@@ -9,8 +9,8 @@
   <param name="zMax" type="double" value="1.3" />
   <param name="minPoints" type="int" value="1" />
   <param name="epsilon" type="double" value="0.4" />
-  <param name="minClusterSize" type="double" value="10.0" />
-  <param name="maxClusterSize" type="double" value="300.0" />
+  <param name="minClusterSize" type="double" value="80.0" />
+  <param name="maxClusterSize" type="double" value="3200.0" />
   <param name="leafSize" type="double" value="0.0" />
 </node>
 \endverbatim

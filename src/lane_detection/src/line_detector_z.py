@@ -125,14 +125,14 @@ class LineDetector() :
             _, lane_image = cv2.threshold(blur_lane, 200, 255, cv2.THRESH_BINARY)
 
             warper_image = self.warper.warp(lane_image)
-            cv2.imshow("warper", warper_image)
+            # cv2.imshow("warper", warper_image)
             self.slide_img, self.slide_x_location, self.current_lane_window = self.slidewindow.slidewindow(warper_image, self.yaw)
 
-            cv2.imshow("slide_img", self.slide_img)
+            # cv2.imshow("slide_img", self.slide_img)
             cv2.setMouseCallback('slide_img', self.click_event)
 
             curve_img, self.ratio = self.slidewindow.curve(warper_image)
-            cv2.imshow("curve_img", curve_img)
+            # cv2.imshow("curve_img", curve_img)
 
             if self.ratio > 0.03 :
                 self.first_curve = 1

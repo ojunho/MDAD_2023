@@ -10,7 +10,7 @@ Reads and maintains the following parameters on the ROS server
 - \b "~zMax" : \b [double] zMaxValue min: -2.0, default: 1.3, max: 100.0
 - \b "~minPoints" : \b [int] minPointsValue min: 1, default: 1, max: 100
 - \b "~epsilon" : \b [double] epsilonValue min: 0.0, default: 0.4, max: 2.0
-- \b "~minClusterSize" : \b [double] minClusterSizeValue min: 0.0, default: 10.0, max: 100.0
-- \b "~maxClusterSize" : \b [double] maxClusterSizeValue min: 0.0, default: 300.0, max: 10000.0
+- \b "~minClusterSize" : \b [double] minClusterSizeValue min: 0.0, default: 80.0, max: 100.0
+- \b "~maxClusterSize" : \b [double] maxClusterSizeValue min: 0.0, default: 3200.0, max: 10000.0
 - \b "~leafSize" : \b [double] leafSizeValue min: 0.0, default: 0.0, max: 1.0
 

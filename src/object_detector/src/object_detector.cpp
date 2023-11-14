@@ -222,7 +222,7 @@ void visualizeObject() {
         objectShape.color.b = 1.0;
         objectShape.color.a = 0.8;
 
-        // objectShape.lifetime = ros::Duration(0.1);
+        objectShape.lifetime = ros::Duration(0.1);
         objectShapeArray.markers.emplace_back(objectShape);
     }
 

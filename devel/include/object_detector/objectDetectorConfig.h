@@ -518,7 +518,7 @@ objectDetectorConfig::GroupDescription<objectDetectorConfig::DEFAULT, objectDete
 //#line 291 "/opt/ros/noetic/lib/python3/dist-packages/dynamic_reconfigure/parameter_generator_catkin.py"
       __max__.minClusterSize = 100.0;
 //#line 291 "/opt/ros/noetic/lib/python3/dist-packages/dynamic_reconfigure/parameter_generator_catkin.py"
-      __default__.minClusterSize = 10.0;
+      __default__.minClusterSize = 80.0;
 //#line 291 "/opt/ros/noetic/lib/python3/dist-packages/dynamic_reconfigure/parameter_generator_catkin.py"
       Default.abstract_parameters.push_back(objectDetectorConfig::AbstractParamDescriptionConstPtr(new objectDetectorConfig::ParamDescription<double>("minClusterSize", "double", 0, "minClusterSizeValue", "", &objectDetectorConfig::minClusterSize)));
 //#line 291 "/opt/ros/noetic/lib/python3/dist-packages/dynamic_reconfigure/parameter_generator_catkin.py"
@@ -528,7 +528,7 @@ objectDetectorConfig::GroupDescription<objectDetectorConfig::DEFAULT, objectDete
 //#line 291 "/opt/ros/noetic/lib/python3/dist-packages/dynamic_reconfigure/parameter_generator_catkin.py"
       __max__.maxClusterSize = 10000.0;
 //#line 291 "/opt/ros/noetic/lib/python3/dist-packages/dynamic_reconfigure/parameter_generator_catkin.py"
-      __default__.maxClusterSize = 300.0;
+      __default__.maxClusterSize = 3200.0;
 //#line 291 "/opt/ros/noetic/lib/python3/dist-packages/dynamic_reconfigure/parameter_generator_catkin.py"
       Default.abstract_parameters.push_back(objectDetectorConfig::AbstractParamDescriptionConstPtr(new objectDetectorConfig::ParamDescription<double>("maxClusterSize", "double", 0, "maxClusterSizeValue", "", &objectDetectorConfig::maxClusterSize)));
 //#line 291 "/opt/ros/noetic/lib/python3/dist-packages/dynamic_reconfigure/parameter_generator_catkin.py"
