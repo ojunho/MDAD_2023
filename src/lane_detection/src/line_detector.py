@@ -125,7 +125,7 @@ class LineDetector() :
             # cv2.imshow("warper", warper_image)
             self.slide_img, self.slide_x_location, self.current_lane_window = self.slidewindow.slidewindow(warper_image, self.yaw)
 
-            # cv2.imshow("slide_img", self.slide_img)
+            cv2.imshow("slide_img", self.slide_img)
             cv2.setMouseCallback('slide_img', self.click_event)
 
             if self.yaw <= -30 :
@@ -133,9 +133,11 @@ class LineDetector() :
             cv2.waitKey(1)
 
             self.gap = 320 - self.slide_x_location 
-
-            if self.slide_x_location < 270 or self.slide_x_location > 370:
+            if self.slide_x_location > 400:
                 self.motor_msg = 10
+                self.steering_angle = self.gap * 0.004
+            elif self.slide_x_location < 270 or self.slide_x_location > 370:
+                self.motor_msg = 15
                 self.steering_angle = self.gap * 0.004
             else:
                 self.motor_msg = 20

@@ -122,13 +122,13 @@ class PurePursuit():
         self.green_count = 0
         self.red_count = 0
 
-        self.obs_count = 0
-        
+        self.dy_obs_mission = False
+        self.dy_obs_orient_y = 0
+
+        # callback 받는 거
+        self.obs_count = 0        
 
         self.T_mission = False
-
-        self.dy_obs_mission = False
-        self.obs_done = True
 
         self.steering_offset = 0.06
 
@@ -158,7 +158,7 @@ class PurePursuit():
 
             self.next_start_waypoint = current_waypoint
 
-            print("Current Waypoint: ", current_waypoint)
+            # print("Current Waypoint: ", current_waypoint)
             # print("red_traffic", self.red_count)
             # print("green_traffic", self.green_count)
            
@@ -233,25 +233,27 @@ class PurePursuit():
                     self.s_flag = True
                     
             #---------------------------- 곡선 코스 보정 -----------------------------------#
-                if (529 < current_waypoint <= 560):
+                if (521 < current_waypoint <= 552):
                     self.setVelocity(15)
 
-                if 1216 < current_waypoint <= 1256:
+                if 1208 < current_waypoint <= 1248:
                     self.setVelocity(15)
 
+                if 1300 < current_waypoint <= 1341:
+                    self.setVelocity(15)
 
             #---------------------------- 신호등 -----------------------------------#
-                if 582 < current_waypoint <= 597 and  self.green_count - self.red_count < 500: # 첫번째 신호등
+                if 574 < current_waypoint <= 589 and  self.green_count - self.red_count < 500: # 첫번째 신호등s
                     self.brake()
             
-                if  1049 < current_waypoint <= 1057 and self.green_count - self.red_count < 500: # 두번째 신호등
+                if  1041 < current_waypoint <= 1049 and self.green_count - self.red_count < 500: # 두번째 신호등
                     self.brake()
                 
             #---------------------------- s자 -----------------------------------#
-                if 760 < current_waypoint <= 777 and self.s_flag:
+                if 752 < current_waypoint <= 769 and self.s_flag:
                     self.motor_msg = 15
                     
-                if 777 < current_waypoint <= 789 and self.s_flag:
+                if 769 < current_waypoint <= 781 and self.s_flag:
                     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                     self.servo_msg = -40
                     self.motor_msg = 3
@@ -271,14 +273,23 @@ class PurePursuit():
             
             #---------------------------- 동적 장애물 -----------------------------------#
 
-                if (1000 <= current_waypoint <= 1040 or 1190 <= current_waypoint <= 1220 or 1350 <= current_waypoint <= 1400 and not self.dy_obs_mission ):
+                if (992 <= current_waypoint <= 1032 or 1182 <= current_waypoint <= 1212 or 1342 <= current_waypoint <= 1392 and not self.dy_obs_mission):
+                    #장애물이 있는가?
                     if(len(self.obs) > 0):
-                        sec = time.time()
-                        while time.time() - sec <= 3:
+                        self.dy_obs_orient_y = self.obs[0][1]
+                        print(self.obs[0][0], self.obs[0][1])
+                        print(self.dy_obs_orient_y)
+                        print(abs(self.dy_obs_orient_y - self.obs[0][1]))
+                        while(True):
                             self.brake()
                             self.emergency_mode()
                             self.dy_obs_mission = True
-                        self.D_mode()
+                            if len(self.obs) == 0 or abs(self.dy_obs_orient_y - self.obs[0][1]) >= 2.6:
+                                self.D_mode()
+                                break
+                        continue
+
+                
 
             #---------------------------- T자 코스 -----------------------------------#
             if (self.path_name == 'parking_1' or 
@@ -396,15 +407,16 @@ class PurePursuit():
                     continue
 
                 #--------------------------------after_parking _ 장애물 미션--------------------------------#
-                if (101 <= current_waypoint <= 160 or 595 <= current_waypoint <= 634) and self.dy_obs_mission == False:
+                if (101 <= current_waypoint <= 160 or 585 <= current_waypoint <= 620) and self.dy_obs_mission == False:
                     if(len(self.obs) > 0):
-                        sec = time.time()
-                        while time.time() - sec <= 3:
+                        while(True):
                             self.brake()
                             self.emergency_mode()
                             self.dy_obs_mission = True
-                        self.D_mode()
-                        
+                            if len(self.obs) == 0:
+                                self.D_mode()
+                                break
+                        continue
 
                 # if self.dy_obs_mission and (160 < current_waypoint <= 170 or 643 < current_waypoint <= 653):
                 #     self.D_mode()
@@ -499,28 +511,31 @@ class PurePursuit():
         # print(self.first_curve, self.second_curve)
 
     def gpsCallback(self, msg): 
-        #UTMK
-        self.original_longitude = msg.longitude
-        self.original_latitude = msg.latitude
+        try:
+            #UTMK
+            self.original_longitude = msg.longitude
+            self.original_latitude = msg.latitude
 
-        self.lat = msg.latitude
-        self.lon = msg.longitude
-        
-        self.convertLL2UTM()
+            self.lat = msg.latitude
+            self.lon = msg.longitude
+            
+            self.convertLL2UTM()
 
-        self.br.sendTransform((self.x, self.y, 0.),
-                         tf.transformations.quaternion_from_euler(0,0,0.),
-                         rospy.Time.now(),
-                         "base_link",
-                         "map")
-        
-        self.utm_msg = Float64MultiArray()
+            self.br.sendTransform((self.x, self.y, 0.),
+                            tf.transformations.quaternion_from_euler(0,0,0.),
+                            rospy.Time.now(),
+                            "base_link",
+                            "map")
+            
+            self.utm_msg = Float64MultiArray()
 
-        self.utm_msg.data = [self.x, self.y]
+            self.utm_msg.data = [self.x, self.y]
 
-        self.odom_msg.pose.pose.position.x = self.x
-        self.odom_msg.pose.pose.position.y = self.y
-        self.odom_msg.pose.pose.position.z = 0
+            self.odom_msg.pose.pose.position.x = self.x
+            self.odom_msg.pose.pose.position.y = self.y
+            self.odom_msg.pose.pose.position.z = 0
+        except:
+            pass
 
 
     def convertLL2UTM(self) :
@@ -528,14 +543,17 @@ class PurePursuit():
         self.x, self.y = xy_zone[0], xy_zone[1]
 
     def ImuCallback(self, msg) :
-        self.odom_msg.pose.pose.orientation.x = msg.orientation.x
-        self.odom_msg.pose.pose.orientation.y = msg.orientation.y
-        self.odom_msg.pose.pose.orientation.z = msg.orientation.z
-        self.odom_msg.pose.pose.orientation.w = msg.orientation.w
+        try:
+            self.odom_msg.pose.pose.orientation.x = msg.orientation.x
+            self.odom_msg.pose.pose.orientation.y = msg.orientation.y
+            self.odom_msg.pose.pose.orientation.z = msg.orientation.z
+            self.odom_msg.pose.pose.orientation.w = msg.orientation.w
 
-        quaternion = (self.odom_msg.pose.pose.orientation.x,self.odom_msg.pose.pose.orientation.y,self.odom_msg.pose.pose.orientation.z,self.odom_msg.pose.pose.orientation.w)
-        _, _, self.yaw =  euler_from_quaternion(quaternion)
-        self.yaw = degrees(self.yaw) 
+            quaternion = (self.odom_msg.pose.pose.orientation.x,self.odom_msg.pose.pose.orientation.y,self.odom_msg.pose.pose.orientation.z,self.odom_msg.pose.pose.orientation.w)
+            _, _, self.yaw =  euler_from_quaternion(quaternion)
+            self.yaw = degrees(self.yaw)
+        except:
+            pass 
 
     def trafficCallback(self, msg):
         # Default : 0, Red : 1, Green :2
@@ -552,7 +570,7 @@ class PurePursuit():
         if len(msg.markers) > 0 and self.obs_count > 0:
             obs = []
             for i in range(len(msg.markers)):
-                if(0 < msg.markers[i].pose.position.x < 7.0 and abs(msg.markers[i].pose.position.y) <= 2.6):
+                if(0 < msg.markers[i].pose.position.x <= 7.0 and abs(msg.markers[i].pose.position.y) <= 2.6):
                     obs.append([(msg.markers[i].pose.position.x, msg.markers[i].pose.position.y)])
             if(len(obs) > 0):
                 self.obs = sorted(obs, key = lambda x: obs[0])[0]
