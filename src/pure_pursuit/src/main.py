@@ -180,6 +180,7 @@ class PurePursuit():
             
             if self.path_name == 'before_parking':
             #---------------------------- 출발 -----------------------------------#
+                # 출발선 앞바퀴 위치 61
                 if  current_waypoint <= 72:
                     self.setSteering(8)
                     self.servo_msg /= 10
@@ -280,9 +281,9 @@ class PurePursuit():
                         while(True):
                             self.brake()
                             self.emergency_mode()
-                            self.dy_obs_mission = True
                             if len(self.obs) == 0 or abs(self.dy_obs_orient_y - self.obs[0][1]) >= 3.6:
                                 self.D_mode()
+                                self.dy_obs_mission = True
                                 break
                         continue
 
@@ -293,29 +294,36 @@ class PurePursuit():
                 self.path_name == 'parking_2' or 
                 self.path_name == 'parking_3'):
 
-                self.setVelocity(9)
+                # 기본 속도
+                self.setVelocity(10) # 원래 9 -> 10
                 self.servo_msg *= 2
                 
                 self.T_mission = True
+                
+                # 예민한거
                 if (self.path_name == 'parking_1' and current_waypoint + 10 >= len(self.global_path.poses)) : 
                     self.setVelocity(2)
 
                 # 후진 조향각 40
-                elif (self.path_name == 'parking_2' and current_waypoint <= 85) :
-                    self.setVelocity(5)
+                elif (self.path_name == 'parking_2' and current_waypoint <= 83) :
+                    self.setVelocity(5) # 원래속도 5
                     self.servo_msg = 40
                     self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
                     continue
                 
-                elif (self.path_name == 'parking_2' and  85 < current_waypoint < 116) : 
-                    self.setVelocity(5)
+                # 직선으로 뒤로 들어옴
+                elif (self.path_name == 'parking_2' and  83 < current_waypoint < 116) : 
+                    self.setVelocity(5) # 원래 속도 5 ->
                     self.servo_msg = 0
                     self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
                     continue
 
+                # 나가는거
                 elif (self.path_name == 'parking_3' and current_waypoint <= 19) :
-                    self.setVelocity(5)
+                    self.setVelocity(10)
                     self.servo_msg *= 2
+                    
+                # 나가면서 꺾음.
                 elif  (self.path_name == 'parking_3' and current_waypoint >= 20) :
                     self.setVelocity(12)
                     self.servo_msg *= 1.4
@@ -351,7 +359,7 @@ class PurePursuit():
                     self.R_mode()
                     continue
 
-                elif self.path_name == 'parking_2' and current_waypoint +2 >= len(self.global_path.poses):
+                elif self.path_name == 'parking_2' and current_waypoint + 2 >= len(self.global_path.poses):
                     self.path_name = 'parking_3'
                     self.global_path = path_load.load_txt(self.path_name+".txt")
                     self.brake()
@@ -382,14 +390,14 @@ class PurePursuit():
 
 
                 #---------------------------- 가속 구간 -----------------------------------#
-                if 415 < current_waypoint <= 505: # 481 -> 461
+                if 415 < current_waypoint <= 500: # 481 -> 461
                     self.setVelocity(40)
                     self.setSteering(25)
                     self.servo_msg /= 4
                     self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
                     continue
 
-                elif 505 < current_waypoint <= 530:
+                elif 500 < current_waypoint <= 530:
                     self.setVelocity(13)
                     self.setSteering(25)
                     self.servo_msg /= 3
@@ -397,7 +405,7 @@ class PurePursuit():
                     continue
                 
                 elif 530 < current_waypoint <= 545:
-                    self.setVelocity(19.5)
+                    self.setVelocity(19.75)
                     self.setSteering(25)
                     self.servo_msg /= 3
                     self.publishCtrlCmd(self.motor_msg, self.servo_msg, self.brake_msg)
@@ -411,9 +419,9 @@ class PurePursuit():
                         while(True):
                             self.brake()
                             self.emergency_mode()
-                            self.dy_obs_mission = True
                             if len(self.obs) == 0 or abs(self.dy_obs_orient_y - self.obs[0][1]) >= 3.6:
                                 self.D_mode()
+                                self.dy_obs_mission = True
                                 break
                         continue
 

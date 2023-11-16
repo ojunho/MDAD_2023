@@ -129,7 +129,7 @@ class LineDetector() :
             self.slide_img, self.slide_x_location, self.current_lane_window = self.slidewindow.slidewindow(warper_image, self.yaw)
 
             # cv2.imshow("slide_img", self.slide_img)
-            cv2.setMouseCallback('slide_img', self.click_event)
+            # cv2.setMouseCallback('slide_img', self.click_event)
 
             curve_img, self.ratio = self.slidewindow.curve(warper_image)
             # cv2.imshow("curve_img", curve_img)
