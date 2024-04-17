@@ -11,7 +11,7 @@ HL Mando & HL Klemove Autonomous Driving Mobility Competition is an event where 
 ## Competition Poster
 
 <p align="center">
-  <img src="https://github.com/ojunho/KUAD_2023/assets/55116932/88817fc3-1ef5-498b-b871-1cc7902c31a5" width="640"/>
+  <img src="https://github.com/ojunho/MDAD_2023/assets/55116932/9725a921-83cf-46a8-8ade-63132139d93e" width="640"/>
 </p>
 
 ## Getting Started
