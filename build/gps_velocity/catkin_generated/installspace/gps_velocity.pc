@@ -1,8 +1,0 @@
-prefix=/home/mdad/MDAD_2023/install
-
-Name: gps_velocity
-Description: Description of gps_velocity
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 
